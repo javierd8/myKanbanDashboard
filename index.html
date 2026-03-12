@@ -3,7 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Zenith Kanban | Engineering Edition</title>
+    <title>Kanban Ina Dashboard</title>
+    <link rel="icon" id="favicon" href="">
     <script src="https://cdn.tailwindcss.com"></script>
     <script>tailwind.config = { darkMode: 'class' }</script>
     <script defer src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js"></script>
@@ -11,100 +12,139 @@
         [x-cloak] { display: none !important; }
         ::-webkit-scrollbar { width: 6px; height: 6px; }
         ::-webkit-scrollbar-track { background: transparent; }
-        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
-        .dark ::-webkit-scrollbar-thumb { background: #334155; }
+        ::-webkit-scrollbar-thumb { background: #6b5a8e; border-radius: 10px; }
+
+        .ina-border { border: 4px solid #6b5a8e; }
         .theme-transition { transition: background-color 0.3s, color 0.3s; }
+        
+        .themed-bg {
+            background-repeat: repeat;
+            background-size: initial;
+            background-position: top left;
+            background-attachment: fixed;
+        }
+        
+        /* Forces the Tenor embed to fit the avatar box */
+        .tenor-container { position: relative; overflow: hidden; pointer-events: none; }
+        .tenor-container iframe { position: absolute; top: 0; left: 0; width: 100% !important; height: 100% !important; }
     </style>
 </head>
-<body class="bg-slate-50 text-slate-900 dark:text-slate-100 font-sans antialiased theme-transition dark:bg-slate-950">
+<body class="themed-bg bg-slate-50 text-slate-900 dark:text-slate-100 font-sans antialiased theme-transition dark:bg-slate-950 min-h-screen flex flex-col"
+      :style="'background-image: url(' + (darkMode ? imageUrls.darkBg : imageUrls.lightBg) + ')'">
 
-    <header class="bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 px-6 py-4 flex flex-wrap justify-between items-center sticky top-0 z-20 gap-4">
-        <h1 class="text-xl font-bold bg-gradient-to-r from-indigo-600 to-violet-600 bg-clip-text text-transparent">Zenith Kanban</h1>
-        <div class="flex flex-1 max-w-md mx-4">
-            <input type="text" x-model="searchQuery" placeholder="Filter tasks..." class="w-full bg-slate-100 dark:bg-slate-800 border-none rounded-lg px-4 py-1.5 text-sm focus:ring-2 focus:ring-indigo-500 outline-none">
+    <header class="bg-white/80 dark:bg-slate-900/80 backdrop-blur-md border-b border-slate-200 dark:border-slate-800 px-6 py-4 flex flex-wrap justify-between items-center sticky top-0 z-20 gap-4">
+        <div class="flex items-center gap-6">
+            
+            <div class="flex-shrink-0 w-24 h-24 rounded-xl shadow-lg ina-border bg-slate-200 tenor-container flex items-center justify-center">
+                <div class="tenor-gif-embed" data-postid="26108945" data-share-method="host" data-aspect-ratio="1" data-width="100%"></div> 
+                <script type="text/javascript" async src="https://tenor.com/embed.js"></script>
+            </div>
+            
+            <div class="flex flex-col">
+                <h1 class="text-2xl font-black bg-gradient-to-r from-indigo-600 to-purple-500 bg-clip-text text-transparent uppercase tracking-tight">Kanban Ina Dashboard</h1>
+                <button @click="resetToDefault()" class="text-[10px] w-fit font-bold text-slate-400 hover:text-orange-500 uppercase border border-slate-200 dark:border-slate-700 px-2 py-0.5 rounded mt-1 transition-colors">Reset Columns</button>
+            </div>
         </div>
+
+        <div class="flex flex-1 max-w-md mx-4">
+            <input type="text" x-model="searchQuery" placeholder="Filter tasks..." class="w-full bg-slate-100 dark:bg-slate-800 border-none rounded-lg px-4 py-2 text-sm focus:ring-2 focus:ring-purple-500 outline-none transition-all">
+        </div>
+
         <div class="flex items-center gap-4">
-            <button @click="toggleTheme()" class="p-2 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors">
+            <button @click="toggleTheme()" class="p-2 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors" title="Toggle Theme">
                 <span x-show="!darkMode">🌙</span><span x-show="darkMode" x-cloak>☀️</span>
             </button>
             <div class="flex gap-2 border-l dark:border-slate-700 pl-4">
-                <label class="cursor-pointer px-3 py-1 bg-slate-100 dark:bg-slate-800 rounded-md text-sm font-medium hover:bg-slate-200 dark:hover:bg-slate-700">
+                <button @click="addColumn()" class="px-4 py-2 bg-emerald-600 text-white rounded-md text-sm font-bold hover:bg-emerald-700 transition-shadow shadow-md">+ Column</button>
+                <button @click="exportData()" class="px-4 py-2 bg-indigo-600 text-white rounded-md text-sm font-bold hover:bg-indigo-700 shadow-md">Export</button>
+                <label class="cursor-pointer px-4 py-2 bg-slate-100 dark:bg-slate-800 rounded-md text-sm font-bold hover:bg-slate-200 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-700">
                     Import <input type="file" class="hidden" @change="importData($event)">
                 </label>
-                <button @click="exportData()" class="px-3 py-1 bg-indigo-600 text-white rounded-md text-sm font-medium hover:bg-indigo-700">Export</button>
             </div>
         </div>
     </header>
 
-    <main class="p-6 h-[calc(100vh-80px)] overflow-x-auto flex gap-6 items-start">
+    <div x-show="errors.length > 0" x-cloak class="p-6 pb-0 z-30 relative">
+        <template x-for="(error, index) in errors" :key="index">
+            <div class="bg-red-100 border-l-4 border-red-500 text-red-700 p-4 mb-2 rounded-lg shadow-md flex justify-between items-center">
+                <div class="flex items-center gap-3">
+                    <span class="font-bold text-xl">!</span>
+                    <p class="text-sm font-semibold" x-text="error.message"></p>
+                </div>
+                <button @click="clearError(index)" class="text-red-500 hover:text-red-800 font-bold ml-4 text-xl leading-none">&times;</button>
+            </div>
+        </template>
+    </div>
+
+    <main class="p-6 flex-grow overflow-x-auto flex gap-6 items-start">
         <template x-for="(column, colIndex) in columns" :key="column.id">
-            <div class="flex-shrink-0 w-80 bg-slate-200/50 dark:bg-slate-900/40 rounded-xl p-4 flex flex-col max-h-full border border-transparent dark:border-slate-800">
-                <div class="flex justify-between items-center mb-4">
-                    <div class="flex items-center gap-2">
-                        <h2 class="font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider text-sm" x-text="column.name"></h2>
-                        <button @click="sortColumn(colIndex)" class="text-[10px] bg-slate-200 dark:bg-slate-700 px-1.5 rounded hover:bg-indigo-500 hover:text-white" title="Sort by Priority">SORT</button>
+            <div class="flex-shrink-0 w-84 bg-white/60 dark:bg-slate-900/60 backdrop-blur-sm rounded-2xl p-4 flex flex-col max-h-full border border-slate-200 dark:border-slate-800 shadow-sm"
+                 draggable="true"
+                 @dragstart="colDragStart($event, colIndex)"
+                 @dragover.prevent
+                 @drop="colDrop($event, colIndex)">
+                
+                <div class="flex justify-between items-center mb-4 cursor-move p-2 hover:bg-white dark:hover:bg-slate-800 rounded-xl transition-all border border-transparent hover:border-purple-200 dark:hover:border-purple-900">
+                    <div class="flex flex-col gap-1 flex-1 mr-2">
+                        <input type="text" x-model="column.name" @change="save()" 
+                               class="bg-transparent border-none font-black text-slate-700 dark:text-slate-300 uppercase tracking-widest text-xs focus:ring-0 w-full p-0">
+                        <div class="flex gap-3">
+                            <button @click="sortColumn(colIndex)" class="text-[9px] font-bold text-indigo-500 hover:text-indigo-700 uppercase">Sort</button>
+                            <button @click="confirmClearColumn(colIndex)" class="text-[9px] font-bold text-slate-400 hover:text-orange-500 uppercase">Clear</button>
+                            <button @click="confirmDeleteColumn(colIndex)" class="text-[9px] font-bold text-slate-400 hover:text-red-500 uppercase">Delete</button>
+                        </div>
                     </div>
-                    <div class="flex items-center gap-2">
-                        <button @click="confirmClearColumn(colIndex)" class="text-[10px] text-red-400 hover:text-red-600 font-bold uppercase" title="Clear All Tasks in Column">Clear</button>
-                        <span class="bg-white dark:bg-slate-800 px-2 py-0.5 rounded text-xs font-bold text-slate-400 border dark:border-slate-700" x-text="filteredTasks(column.tasks).length"></span>
-                    </div>
+                    <span class="bg-purple-600 text-white px-2 py-0.5 rounded-lg text-[10px] font-black" x-text="filteredTasks(column.tasks).length"></span>
                 </div>
 
-                <div class="space-y-3 overflow-y-auto flex-grow min-h-[100px]" @dragover.prevent @drop="drop($event, colIndex)">
+                <div class="space-y-4 overflow-y-auto flex-grow min-h-[150px] px-1" 
+                     @dragover.prevent.stop 
+                     @drop.stop="drop($event, colIndex)">
                     <template x-for="(task, taskIndex) in filteredTasks(column.tasks)" :key="task.id">
-                        <div class="bg-white dark:bg-slate-800 p-4 rounded-lg shadow-sm border border-slate-200 dark:border-slate-700 cursor-grab active:cursor-grabbing group transition-all hover:border-indigo-400"
-                             draggable="true" @dragstart="dragStart($event, colIndex, task.id)">
-                            
-                            <div class="flex justify-between items-start mb-2">
-                                <div class="flex flex-wrap gap-1">
+                        <div class="bg-white dark:bg-slate-800 p-4 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 cursor-grab active:cursor-grabbing group transition-all hover:shadow-lg hover:border-purple-400"
+                             draggable="true" @dragstart.stop="dragStart($event, colIndex, task.id)">
+                            <div class="flex justify-between items-start mb-3">
+                                <div class="flex flex-wrap gap-1.5">
                                     <span :class="priorityClass(task.priority)" x-text="task.priority"></span>
                                     <template x-if="task.deadline">
                                         <span :class="deadlineClass(task.deadline)" class="px-2 py-0.5 rounded text-[10px] font-bold" x-text="formatDate(task.deadline)"></span>
                                     </template>
                                 </div>
-                                <div class="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                                    <button @click="openEditModal(colIndex, task)" class="text-slate-400 hover:text-indigo-500 text-xs">Edit</button>
-                                    <button @click="confirmDelete(colIndex, task.id)" class="text-slate-400 hover:text-red-500 text-lg leading-none">&times;</button>
+                                <div class="flex gap-3 opacity-0 group-hover:opacity-100 transition-opacity">
+                                    <button @click="openEditModal(colIndex, task)" class="text-purple-500 hover:text-purple-700 text-[10px] font-black uppercase">Edit</button>
+                                    <button @click="confirmDelete(colIndex, task.id)" class="text-slate-300 hover:text-red-500 text-lg leading-none">&times;</button>
                                 </div>
                             </div>
-                            <p class="text-sm font-medium text-slate-700 dark:text-slate-200 break-words whitespace-pre-wrap mb-2" x-text="task.content"></p>
-                            
+                            <p class="text-sm font-semibold text-slate-700 dark:text-slate-200 break-words whitespace-pre-wrap mb-3 leading-relaxed" x-text="task.content"></p>
                             <template x-if="task.checklists && task.checklists.length > 0">
-                                <div class="mt-2 pt-2 border-t dark:border-slate-700">
-                                    <div class="flex justify-between text-[10px] text-slate-400 mb-1">
-                                        <span x-text="completedCount(task) + '/' + task.checklists.length + ' tasks'"></span>
-                                        <span x-text="Math.round((completedCount(task)/task.checklists.length)*100) + '%'"></span>
-                                    </div>
-                                    <div class="w-full bg-slate-100 dark:bg-slate-700 h-1 rounded-full overflow-hidden">
-                                        <div class="bg-indigo-500 h-full transition-all" :style="'width:' + (completedCount(task)/task.checklists.length)*100 + '%'"></div>
+                                <div class="mt-2 pt-3 border-t dark:border-slate-700/50">
+                                    <div class="w-full bg-slate-100 dark:bg-slate-900 h-1.5 rounded-full overflow-hidden">
+                                        <div class="bg-purple-500 h-full transition-all" :style="'width:' + (completedCount(task)/task.checklists.length)*100 + '%'"></div>
                                     </div>
                                 </div>
                             </template>
                         </div>
                     </template>
+                    <button @click="column.isAdding = true" x-show="!column.isAdding" class="w-full py-3 border-2 border-dashed border-slate-300 dark:border-slate-700 rounded-xl text-slate-400 text-sm font-bold hover:border-purple-400 hover:text-purple-500 transition-all">+ New Task</button>
                     
-                    <button @click="column.isAdding = true" x-show="!column.isAdding" class="w-full py-2 border-2 border-dashed border-slate-300 dark:border-slate-700 rounded-lg text-slate-400 text-sm hover:border-indigo-400 hover:text-indigo-500">+ Add Task</button>
-                    
-                    <div x-show="column.isAdding" x-cloak class="bg-white dark:bg-slate-800 p-3 rounded-lg shadow-md border border-indigo-200 dark:border-indigo-900 space-y-3">
-                        <textarea x-model="newTaskContent" class="w-full text-sm p-2 border border-slate-200 dark:border-slate-700 dark:bg-slate-900 rounded outline-none focus:ring-2 focus:ring-indigo-500 dark:text-slate-200" placeholder="Task description..."></textarea>
-                        
-                        <div class="space-y-1">
+                    <div x-show="column.isAdding" x-cloak class="bg-white dark:bg-slate-800 p-4 rounded-xl shadow-xl border-2 border-purple-400 space-y-4">
+                        <textarea x-model="newTaskContent" class="w-full text-sm p-2 bg-slate-50 dark:bg-slate-900 border-none rounded-lg outline-none focus:ring-2 focus:ring-purple-500 dark:text-slate-200" placeholder="Task description..."></textarea>
+                        <div class="space-y-2">
                             <template x-for="(st, i) in newTaskSubtasks" :key="i">
-                                <div class="flex gap-1 items-center">
-                                    <input type="text" x-model="newTaskSubtasks[i].text" class="flex-1 text-[10px] bg-slate-50 dark:bg-slate-900 border-none rounded py-1 px-2" placeholder="Sub-task...">
-                                    <button @click="newTaskSubtasks.splice(i,1)" class="text-slate-300 hover:text-red-500 text-xs">&times;</button>
+                                <div class="flex gap-2 items-center bg-slate-100 dark:bg-slate-900 p-2 rounded-lg">
+                                    <input type="text" x-model="newTaskSubtasks[i].text" class="flex-1 text-[11px] bg-transparent border-none rounded p-0 dark:text-slate-300 focus:ring-0" placeholder="Sub-task name...">
+                                    <button @click="newTaskSubtasks.splice(i,1)" class="text-slate-400 hover:text-red-500">&times;</button>
                                 </div>
                             </template>
-                            <button @click="newTaskSubtasks.push({text:'', done:false})" class="text-[10px] text-indigo-500 font-bold hover:underline">+ Add Sub-task</button>
+                            <button @click="newTaskSubtasks.push({text:'', done:false})" class="text-[10px] text-purple-500 font-black hover:underline uppercase">+ Add Step</button>
                         </div>
-
-                        <div class="flex gap-2 items-center">
-                            <select x-model="newTaskPriority" class="text-xs border dark:border-slate-700 dark:bg-slate-900 rounded px-1 dark:text-slate-300">
-                                <option value="low">Low</option><option value="med">Med</option><option value="high">High</option>
+                        <div class="flex gap-2 items-center pt-2 border-t dark:border-slate-700">
+                            <select x-model="newTaskPriority" class="text-xs font-bold border-none bg-slate-100 dark:bg-slate-700 rounded-md px-2 py-1 dark:text-slate-300">
+                                <option value="low">LOW</option><option value="med">MED</option><option value="high">HIGH</option>
                             </select>
                             <div class="flex-grow"></div>
-                            <button @click="addTask(colIndex)" class="bg-indigo-600 text-white px-3 py-1 rounded text-xs hover:bg-indigo-700">Save</button>
-                            <button @click="cancelAddTask(colIndex)" class="text-slate-400 text-xs hover:text-slate-600">Cancel</button>
+                            <button @click="addTask(colIndex)" class="bg-purple-600 text-white px-4 py-1.5 rounded-lg text-xs font-black hover:bg-purple-700">SAVE</button>
+                            <button @click="cancelAddTask(colIndex)" class="text-slate-400 text-xs font-bold hover:text-slate-600">CANCEL</button>
                         </div>
                     </div>
                 </div>
@@ -112,14 +152,44 @@
         </template>
     </main>
 
+    <div x-show="isEditModalOpen" x-cloak class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
+        <div class="bg-white dark:bg-slate-900 w-full max-w-2xl rounded-2xl shadow-2xl border border-slate-200 dark:border-slate-800 overflow-hidden flex flex-col max-h-[90vh]" @click.away="closeEditModal()">
+            <div class="p-6 overflow-y-auto">
+                <div class="flex justify-between items-center mb-6">
+                    <h3 class="text-xl font-black dark:text-white uppercase tracking-tight">Edit Task</h3>
+                    <div class="flex gap-4">
+                        <input type="date" x-model="editingTask.deadline" class="text-xs border dark:border-slate-700 dark:bg-slate-800 rounded-lg px-3 py-1.5 dark:text-white outline-none focus:ring-2 focus:ring-purple-500">
+                        <select x-model="editingTask.priority" class="text-xs font-bold border dark:border-slate-700 dark:bg-slate-800 rounded-lg px-3 py-1.5 dark:text-slate-300 outline-none focus:ring-2 focus:ring-purple-500">
+                            <option value="low">LOW</option><option value="med">MED</option><option value="high">HIGH</option>
+                        </select>
+                    </div>
+                </div>
+                <textarea x-model="editingTask.content" class="w-full h-32 text-sm p-4 bg-slate-50 dark:bg-slate-800 rounded-xl mb-6 dark:text-slate-200 outline-none focus:ring-2 focus:ring-purple-500 font-medium"></textarea>
+                <div class="mb-4">
+                    <label class="block text-[10px] font-black uppercase text-slate-400 mb-4 tracking-widest">Sub-Task Checklist</label>
+                    <div class="space-y-3 mb-4">
+                        <template x-for="(item, index) in editingTask.checklists" :key="index">
+                            <div class="flex items-center gap-3 group bg-slate-50 dark:bg-slate-800/50 p-2 rounded-lg border border-transparent hover:border-purple-200 dark:hover:border-purple-900">
+                                <input type="checkbox" x-model="item.done" class="w-4 h-4 rounded-md border-slate-300 text-purple-600 focus:ring-purple-500">
+                                <input type="text" x-model="item.text" class="flex-1 bg-transparent border-none text-sm dark:text-slate-200 outline-none font-medium">
+                                <button @click="editingTask.checklists.splice(index, 1)" class="text-slate-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity font-bold">REMOVE</button>
+                            </div>
+                        </template>
+                    </div>
+                    <button @click="editingTask.checklists.push({text: '', done: false})" class="text-xs text-purple-500 font-black hover:underline uppercase">+ Add Sub-task</button>
+                </div>
+            </div>
+            <div class="p-4 bg-slate-50 dark:bg-slate-900/50 flex justify-end gap-3 border-t dark:border-slate-800">
+                <button @click="closeEditModal()" class="text-slate-500 hover:text-slate-700 text-sm font-bold uppercase">Cancel</button>
+                <button @click="saveEdit()" class="bg-indigo-600 text-white px-8 py-2.5 rounded-xl text-sm font-black hover:bg-indigo-700 shadow-lg shadow-indigo-500/20">SAVE CHANGES</button>
+            </div>
+        </div>
+    </div>
+
     <script>
         function kanbanApp() {
             return {
-                columns: [
-                    { id: 1, name: 'To Do', tasks: [], isAdding: false },
-                    { id: 2, name: 'In Progress', tasks: [], isAdding: false },
-                    { id: 3, name: 'Done', tasks: [], isAdding: false }
-                ],
+                columns: [],
                 darkMode: false,
                 searchQuery: '',
                 newTaskContent: '',
@@ -127,25 +197,117 @@
                 newTaskSubtasks: [],
                 isEditModalOpen: false,
                 editingTask: { id: null, content: '', priority: '', deadline: '', checklists: [], colIndex: null },
+                dragInfo: null,
+                colDragIndex: null,
+                errors: [],
+                rootPath: '',
+                imageUrls: {},
 
                 init() {
-                    const savedData = localStorage.getItem('zenith_data');
-                    const savedTheme = localStorage.getItem('zenith_theme');
-                    if (savedData) this.columns = JSON.parse(savedData);
-                    if (savedTheme !== null) this.darkMode = JSON.parse(savedTheme);
+                    const isSubFolder = location.pathname.includes('/test/') || location.pathname.includes('/main/');
+                    this.rootPath = isSubFolder ? '../' : '';
+
+                    this.imageUrls = {
+                        takoIcon: this.rootPath + 'images/image_0.png',
+                        lightBg: this.rootPath + 'images/image_1.png',
+                        darkBg: this.rootPath + 'images/image_2.png'
+                    };
+
+                    try {
+                        document.getElementById('favicon').href = this.imageUrls.takoIcon;
+                    } catch (e) {
+                        this.logError('Failed to load website icon', e);
+                    }
+
+                    try {
+                        const savedData = localStorage.getItem('kanban_v5_pro');
+                        const savedTheme = localStorage.getItem('kanban_theme_v5');
+                        if (savedData) {
+                            this.columns = JSON.parse(savedData);
+                        } else {
+                            this.resetToDefault(false);
+                        }
+                        if (savedTheme !== null) this.darkMode = JSON.parse(savedTheme);
+                    } catch (e) {
+                        this.logError('Failed to load LocalStorage Data', e);
+                        this.resetToDefault(false);
+                    }
                 },
 
                 save() {
-                    localStorage.setItem('zenith_data', JSON.stringify(this.columns));
-                    localStorage.setItem('zenith_theme', JSON.stringify(this.darkMode));
+                    try {
+                        localStorage.setItem('kanban_v5_pro', JSON.stringify(this.columns));
+                        localStorage.setItem('kanban_theme_v5', JSON.stringify(this.darkMode));
+                    } catch (e) {
+                        this.logError('Failed to save to LocalStorage', e);
+                    }
                 },
 
-                filteredTasks(tasks) {
-                    if (!this.searchQuery) return tasks;
-                    return tasks.filter(t => t.content.toLowerCase().includes(this.searchQuery.toLowerCase()));
+                // Push to UI and Developer Console
+                logError(uiMessage, technicalError) { 
+                    this.errors.push({ message: uiMessage }); 
+                    console.error("KANBAN DASHBOARD ERROR:", technicalError);
+                },
+                
+                clearError(index) { this.errors.splice(index, 1); },
+
+                resetToDefault(confirmAction = true) {
+                    if (confirmAction && !confirm("Reset layout to default To-Do, In Progress, Done? Your current columns and tasks will be removed.")) return;
+                    this.columns = [
+                        { id: 1, name: 'To Do', tasks: [], isAdding: false },
+                        { id: 2, name: 'In Progress', tasks: [], isAdding: false },
+                        { id: 3, name: 'Done', tasks: [], isAdding: false }
+                    ];
+                    this.save();
                 },
 
-                toggleTheme() { this.darkMode = !this.darkMode; this.save(); },
+                addColumn() {
+                    const name = prompt("Enter Column Name:", "New Column");
+                    if (name) {
+                        this.columns.push({ id: Date.now(), name: name, tasks: [], isAdding: false });
+                        this.save();
+                    }
+                },
+
+                dragStart(e, colIdx, id) { 
+                    this.dragInfo = { colIndex: colIdx, taskId: id }; 
+                    e.dataTransfer.setData('type', 'task');
+                },
+                
+                drop(e, targetIdx) {
+                    if (!this.dragInfo) return;
+                    try {
+                        const { colIndex, taskId } = this.dragInfo;
+                        const idx = this.columns[colIndex].tasks.findIndex(t => t.id === taskId);
+                        if (idx > -1) {
+                            const task = this.columns[colIndex].tasks.splice(idx, 1)[0];
+                            this.columns[targetIdx].tasks.push(task);
+                            this.save();
+                        }
+                    } catch (e) {
+                        this.logError("Task drag and drop failed.", e);
+                    } finally {
+                        this.dragInfo = null;
+                    }
+                },
+
+                colDragStart(e, idx) {
+                    this.colDragIndex = idx;
+                    e.dataTransfer.setData('type', 'column');
+                },
+                
+                colDrop(e, targetIdx) {
+                    if (this.colDragIndex === null) return;
+                    try {
+                        const col = this.columns.splice(this.colDragIndex, 1)[0];
+                        this.columns.splice(targetIdx, 0, col);
+                        this.save();
+                    } catch (e) {
+                        this.logError("Column reordering failed.", e);
+                    } finally {
+                        this.colDragIndex = null;
+                    }
+                },
 
                 addTask(colIndex) {
                     if (!this.newTaskContent.trim()) return;
@@ -166,15 +328,22 @@
                     this.columns[colIndex].isAdding = false;
                 },
 
+                confirmDeleteColumn(idx) {
+                    if (confirm(`Delete column "${this.columns[idx].name}" and ALL its tasks?`)) {
+                        this.columns.splice(idx, 1);
+                        this.save();
+                    }
+                },
+
                 confirmDelete(colIdx, id) {
-                    if (confirm("Are you sure you want to delete this task?")) {
+                    if (confirm("Delete this task?")) {
                         this.columns[colIdx].tasks = this.columns[colIdx].tasks.filter(t => t.id !== id);
                         this.save();
                     }
                 },
 
                 confirmClearColumn(colIdx) {
-                    if (confirm(`Delete ALL tasks in ${this.columns[colIdx].name}? This cannot be undone.`)) {
+                    if (confirm(`Clear all tasks from the "${this.columns[colIdx].name}" column?`)) {
                         this.columns[colIdx].tasks = [];
                         this.save();
                     }
@@ -186,57 +355,46 @@
                     this.save();
                 },
 
-                priorityClass(p) {
-                    const base = "px-2 py-0.5 rounded text-[10px] font-bold uppercase ";
-                    if (p === 'high') return base + "bg-red-100 text-red-600 dark:bg-red-900/30 dark:text-red-400";
-                    if (p === 'med') return base + "bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400";
-                    return base + "bg-slate-100 text-slate-600 dark:bg-slate-700 dark:text-slate-400";
+                filteredTasks(tasks) {
+                    if (!this.searchQuery) return tasks;
+                    return tasks.filter(t => t.content.toLowerCase().includes(this.searchQuery.toLowerCase()));
                 },
 
+                toggleTheme() { this.darkMode = !this.darkMode; this.save(); },
+                priorityClass(p) {
+                    const base = "px-2 py-0.5 rounded text-[9px] font-black uppercase ";
+                    if (p === 'high') return base + "bg-red-100 text-red-600 dark:bg-red-900/30 dark:text-red-400";
+                    if (p === 'med') return base + "bg-purple-100 text-purple-600 dark:bg-purple-900/30 dark:text-purple-400";
+                    return base + "bg-slate-100 text-slate-600 dark:bg-slate-700 dark:text-slate-400";
+                },
                 deadlineClass(d) {
                     const overdue = new Date(d) < new Date().setHours(0,0,0,0);
                     return overdue ? "bg-red-500 text-white" : "bg-slate-200 dark:bg-slate-700 text-slate-500 dark:text-slate-400";
                 },
-
                 formatDate(d) { return d.split('-').slice(1).join('/'); },
                 completedCount(t) { return t.checklists.filter(c => c.done).length; },
-
                 openEditModal(colIndex, task) {
                     this.editingTask = { ...JSON.parse(JSON.stringify(task)), colIndex };
                     this.isEditModalOpen = true;
                 },
-
                 closeEditModal() { this.isEditModalOpen = false; },
-
                 saveEdit() {
                     const col = this.columns[this.editingTask.colIndex];
                     const idx = col.tasks.findIndex(t => t.id === this.editingTask.id);
-                    if (idx !== -1) {
-                        col.tasks[idx] = { ...this.editingTask };
-                        this.save();
-                    }
+                    if (idx !== -1) { col.tasks[idx] = { ...this.editingTask }; this.save(); }
                     this.closeEditModal();
                 },
-
-                dragStart(e, colIdx, id) { this.dragInfo = { colIndex: colIdx, taskId: id }; },
-                drop(e, targetIdx) {
-                    if (!this.dragInfo) return;
-                    const { colIndex, taskId } = this.dragInfo;
-                    const idx = this.columns[colIndex].tasks.findIndex(t => t.id === taskId);
-                    const task = this.columns[colIndex].tasks.splice(idx, 1)[0];
-                    this.columns[targetIdx].tasks.push(task);
-                    this.save();
-                    this.dragInfo = null;
-                },
-
                 exportData() {
-                    const blob = new Blob([JSON.stringify(this.columns)], { type: 'application/json' });
-                    const link = document.createElement('a');
-                    link.href = URL.createObjectURL(blob);
-                    link.download = `kanban-export.json`;
-                    link.click();
+                    try {
+                        const blob = new Blob([JSON.stringify(this.columns)], { type: 'application/json' });
+                        const link = document.createElement('a');
+                        link.href = URL.createObjectURL(blob);
+                        link.download = `kanban-export-v5.json`;
+                        link.click();
+                    } catch (e) {
+                        this.logError("Failed to generate JSON export file.", e);
+                    }
                 },
-
                 importData(e) {
                     const file = e.target.files[0];
                     if (!file) return;
@@ -245,7 +403,9 @@
                         try {
                             const imported = JSON.parse(ev.target.result);
                             if (Array.isArray(imported)) { this.columns = imported; this.save(); }
-                        } catch(e) { alert("Invalid File Format"); }
+                        } catch (err) {
+                            this.logError("The imported JSON file is corrupt or has an invalid format.", err);
+                        }
                     };
                     reader.readAsText(file);
                 }
