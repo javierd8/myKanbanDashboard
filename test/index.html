@@ -3,8 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Kanban Dashboard</title>
-    <link rel="icon" href="https://fonts.gstatic.com/s/i/short-term/release/googlestyles/notoemoji/f22c/48.png">
+    <title>Kanban Dashboard Pro</title>
+    <link rel="icon" id="favicon" href="">
     <script src="https://cdn.tailwindcss.com"></script>
     <script>tailwind.config = { darkMode: 'class' }</script>
     <script defer src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js"></script>
@@ -14,21 +14,20 @@
         ::-webkit-scrollbar-track { background: transparent; }
         ::-webkit-scrollbar-thumb { background: #6b5a8e; border-radius: 10px; }
 
-        /* Subtle Geometric Pattern for the Board */
-        .board-pattern {
-            background-color: transparent;
-            background-image: radial-gradient(#6b5a8e 0.5px, transparent 0.5px);
-            background-size: 20px 20px;
-        }
-        .dark .board-pattern {
-            background-image: radial-gradient(#334155 0.5px, transparent 0.5px);
-        }
-
         .ina-border { border: 4px solid #6b5a8e; }
         .theme-transition { transition: background-color 0.3s, color 0.3s; }
+        
+        /* Themed Background Pattern Rules */
+        .themed-bg {
+            background-repeat: repeat;
+            background-size: initial;
+            background-position: top left;
+            background-attachment: fixed;
+        }
     </style>
 </head>
-<body class="bg-slate-50 text-slate-900 dark:text-slate-100 font-sans antialiased theme-transition dark:bg-slate-950 min-h-screen flex flex-col">
+<body class="themed-bg bg-slate-50 text-slate-900 dark:text-slate-100 font-sans antialiased theme-transition dark:bg-slate-950 min-h-screen flex flex-col"
+      :style="'background-image: url(' + (darkMode ? imageUrls.darkBg : imageUrls.lightBg) + ')'">
 
     <header class="bg-white/80 dark:bg-slate-900/80 backdrop-blur-md border-b border-slate-200 dark:border-slate-800 px-6 py-4 flex flex-wrap justify-between items-center sticky top-0 z-20 gap-4">
         <div class="flex items-center gap-6">
@@ -41,7 +40,7 @@
             <div class="flex flex-col">
                 <div class="flex items-center gap-2">
                     <span class="text-2xl">🐙</span>
-                    <h1 class="text-2xl font-black bg-gradient-to-r from-indigo-600 to-purple-500 bg-clip-text text-transparent uppercase tracking-tight">Kanban Dashboard</h1>
+                    <h1 class="text-2xl font-black bg-gradient-to-r from-indigo-600 to-purple-500 bg-clip-text text-transparent uppercase tracking-tight">Kanban Dashboard Pro</h1>
                 </div>
                 <button @click="resetToDefault()" class="text-[10px] w-fit font-bold text-slate-400 hover:text-orange-500 uppercase border border-slate-200 dark:border-slate-700 px-2 py-0.5 rounded mt-1">Reset Columns</button>
             </div>
@@ -65,7 +64,16 @@
         </div>
     </header>
 
-    <main class="p-6 flex-grow overflow-x-auto flex gap-6 items-start board-pattern">
+    <div x-show="errors.length > 0" x-cloak class="p-6">
+        <template x-for="(error, index) in errors" :key="index">
+            <div class="bg-red-100 border-l-4 border-red-500 text-red-700 p-4 mb-4 rounded-lg shadow-md flex justify-between items-center">
+                <p x-text="error.message"></p>
+                <button @click="clearError(index)" class="text-red-500 font-bold ml-4">&times;</button>
+            </div>
+        </template>
+    </div>
+
+    <main class="p-6 flex-grow overflow-x-auto flex gap-6 items-start">
         <template x-for="(column, colIndex) in columns" :key="column.id">
             <div class="flex-shrink-0 w-84 bg-white/60 dark:bg-slate-900/60 backdrop-blur-sm rounded-2xl p-4 flex flex-col max-h-full border border-slate-200 dark:border-slate-800 shadow-sm"
                  draggable="true"
@@ -168,9 +176,9 @@
                     <button @click="editingTask.checklists.push({text: '', done: false})" class="text-xs text-purple-500 font-black hover:underline uppercase">+ Add Sub-task</button>
                 </div>
             </div>
-            <div class="p-4 bg-slate-50 dark:bg-slate-900/50 flex justify-end gap-3 border-t dark:border-slate-800">
+            <div class="p-4 bg-slate-50 dark:bg-slate-900/50 flex justify-end gap-3 border-t dark:border-slate-700">
                 <button @click="closeEditModal()" class="text-slate-500 hover:text-slate-700 text-sm font-bold uppercase">Cancel</button>
-                <button @click="saveEdit()" class="bg-purple-600 text-white px-8 py-2.5 rounded-xl text-sm font-black hover:bg-purple-700 shadow-lg shadow-purple-500/20">SAVE CHANGES</button>
+                <button @click="saveEdit()" class="bg-indigo-600 text-white px-8 py-2.5 rounded-xl text-sm font-black hover:bg-indigo-700 shadow-lg shadow-indigo-500/20">SAVE CHANGES</button>
             </div>
         </div>
     </div>
@@ -188,25 +196,64 @@
                 editingTask: { id: null, content: '', priority: '', deadline: '', checklists: [], colIndex: null },
                 dragInfo: null,
                 colDragIndex: null,
+                
+                // Error handling state
+                errors: [],
+                rootPath: '', // calculated automatically
+                imageUrls: {}, // calculated automatically
 
                 init() {
-                    const savedData = localStorage.getItem('kanban_v4_final');
-                    const savedTheme = localStorage.getItem('kanban_theme_v4');
-                    if (savedData) {
-                        this.columns = JSON.parse(savedData);
-                    } else {
+                    // 1. Calculate and set the relative root path for images
+                    // Accounts for running index.html from root, or a /test/ subfolder
+                    const isSubFolder = location.pathname.includes('/test/') || location.pathname.includes('/main/');
+                    this.rootPath = isSubFolder ? '../' : '';
+
+                    this.imageUrls = {
+                        takoIcon: this.rootPath + 'images/image_0.png',
+                        lightBg: this.rootPath + 'images/image_1.png',
+                        darkBg: this.rootPath + 'images/image_2.png'
+                    };
+
+                    // Set favicon path in JavaScript to work in subfolders
+                    try {
+                        document.getElementById('favicon').href = this.imageUrls.takoIcon;
+                    } catch (e) {
+                        this.errors.push({ message: 'Critical Error: Failed to set website icon.' });
+                    }
+
+                    // 2. Wrap local storage in try...catch
+                    try {
+                        const savedData = localStorage.getItem('kanban_v4_pro');
+                        const savedTheme = localStorage.getItem('kanban_theme_v4');
+                        if (savedData) {
+                            this.columns = JSON.parse(savedData);
+                        } else {
+                            this.resetToDefault(false);
+                        }
+                        if (savedTheme !== null) this.darkMode = JSON.parse(savedTheme);
+                    } catch (e) {
+                        this.errors.push({ message: 'Error: Failed to load data from LocalStorage. The app might be running with temporary data.' });
+                        // fallback to a clean state if data loading fails
                         this.resetToDefault(false);
                     }
-                    if (savedTheme !== null) this.darkMode = JSON.parse(savedTheme);
                 },
 
                 save() {
-                    localStorage.setItem('kanban_v4_final', JSON.stringify(this.columns));
-                    localStorage.setItem('kanban_theme_v4', JSON.stringify(this.darkMode));
+                    // Wrapped in try...catch to prevent a single failure from affecting other features
+                    try {
+                        localStorage.setItem('kanban_v4_pro', JSON.stringify(this.columns));
+                        localStorage.setItem('kanban_theme_v4', JSON.stringify(this.darkMode));
+                    } catch (e) {
+                        this.errors.push({ message: 'Error: Failed to save changes to LocalStorage. If you clear your browser data, your work will be lost.' });
+                    }
                 },
 
+                // Error UI helper functions
+                pushError(msg) { this.errors.push({ message: msg }); },
+                clearError(index) { this.errors.splice(index, 1); },
+
                 resetToDefault(confirmAction = true) {
-                    if (confirmAction && !confirm("Reset layout to default?")) return;
+                    if (confirmAction && !confirm("Reset layout to default To-Do, In Progress, Done? Your current columns and tasks will be removed.")) return;
                     this.columns = [
                         { id: 1, name: 'To Do', tasks: [], isAdding: false },
                         { id: 2, name: 'In Progress', tasks: [], isAdding: false },
@@ -216,31 +263,51 @@
                 },
 
                 addColumn() {
-                    const name = prompt("Name this column:", "New Column");
+                    const name = prompt("Enter Column Name:", "New Column");
                     if (name) {
                         this.columns.push({ id: Date.now(), name: name, tasks: [], isAdding: false });
                         this.save();
                     }
                 },
 
-                colDragStart(e, idx) { this.colDragIndex = idx; e.dataTransfer.setData('type', 'column'); },
-                colDrop(e, targetIdx) {
-                    if (this.colDragIndex === null) return;
-                    const col = this.columns.splice(this.colDragIndex, 1)[0];
-                    this.columns.splice(targetIdx, 0, col);
-                    this.save();
-                    this.colDragIndex = null;
+                // Task Drag Logic
+                dragStart(e, colIdx, id) { 
+                    this.dragInfo = { colIndex: colIdx, taskId: id }; 
+                    e.dataTransfer.setData('type', 'task');
                 },
-
-                dragStart(e, colIdx, id) { this.dragInfo = { colIndex: colIdx, taskId: id }; e.dataTransfer.setData('type', 'task'); },
                 drop(e, targetIdx) {
                     if (!this.dragInfo) return;
-                    const { colIndex, taskId } = this.dragInfo;
-                    const idx = this.columns[colIndex].tasks.findIndex(t => t.id === taskId);
-                    const task = this.columns[colIndex].tasks.splice(idx, 1)[0];
-                    this.columns[targetIdx].tasks.push(task);
-                    this.save();
-                    this.dragInfo = null;
+                    try {
+                        const { colIndex, taskId } = this.dragInfo;
+                        const idx = this.columns[colIndex].tasks.findIndex(t => t.id === taskId);
+                        if (idx > -1) {
+                            const task = this.columns[colIndex].tasks.splice(idx, 1)[0];
+                            this.columns[targetIdx].tasks.push(task);
+                            this.save();
+                        }
+                    } catch (e) {
+                        this.pushError("Error: Task drag and drop failed. Try refreshing the page.");
+                    } finally {
+                        this.dragInfo = null;
+                    }
+                },
+
+                // Column Drag Logic
+                colDragStart(e, idx) {
+                    this.colDragIndex = idx;
+                    e.dataTransfer.setData('type', 'column');
+                },
+                colDrop(e, targetIdx) {
+                    if (this.colDragIndex === null) return;
+                    try {
+                        const col = this.columns.splice(this.colDragIndex, 1)[0];
+                        this.columns.splice(targetIdx, 0, col);
+                        this.save();
+                    } catch (e) {
+                        this.pushError("Error: Column reordering failed. Try refreshing the page.");
+                    } finally {
+                        this.colDragIndex = null;
+                    }
                 },
 
                 addTask(colIndex) {
@@ -262,18 +329,38 @@
                     this.columns[colIndex].isAdding = false;
                 },
 
-                confirmDeleteColumn(idx) { if (confirm(`Delete column?`)) { this.columns.splice(idx, 1); this.save(); } },
-                confirmDelete(colIdx, id) { if (confirm("Delete task?")) { this.columns[colIdx].tasks = this.columns[colIdx].tasks.filter(t => t.id !== id); this.save(); } },
-                confirmClearColumn(colIdx) { if (confirm("Clear all tasks?")) { this.columns[colIdx].tasks = []; this.save(); } },
+                confirmDeleteColumn(idx) {
+                    if (confirm(`Delete column "${this.columns[idx].name}" and ALL its tasks? This action cannot be undone.`)) {
+                        this.columns.splice(idx, 1);
+                        this.save();
+                    }
+                },
+
+                confirmDelete(colIdx, id) {
+                    if (confirm("Delete this task?")) {
+                        this.columns[colIdx].tasks = this.columns[colIdx].tasks.filter(t => t.id !== id);
+                        this.save();
+                    }
+                },
+
+                confirmClearColumn(colIdx) {
+                    if (confirm(`Clear all tasks from the "${this.columns[colIdx].name}" column?`)) {
+                        this.columns[colIdx].tasks = [];
+                        this.save();
+                    }
+                },
+
                 sortColumn(colIndex) {
                     const pMap = { high: 1, med: 2, low: 3 };
                     this.columns[colIndex].tasks.sort((a, b) => pMap[a.priority] - pMap[b.priority]);
                     this.save();
                 },
+
                 filteredTasks(tasks) {
                     if (!this.searchQuery) return tasks;
                     return tasks.filter(t => t.content.toLowerCase().includes(this.searchQuery.toLowerCase()));
                 },
+
                 toggleTheme() { this.darkMode = !this.darkMode; this.save(); },
                 priorityClass(p) {
                     const base = "px-2 py-0.5 rounded text-[9px] font-black uppercase ";
@@ -287,7 +374,10 @@
                 },
                 formatDate(d) { return d.split('-').slice(1).join('/'); },
                 completedCount(t) { return t.checklists.filter(c => c.done).length; },
-                openEditModal(colIndex, task) { this.editingTask = { ...JSON.parse(JSON.stringify(task)), colIndex }; this.isEditModalOpen = true; },
+                openEditModal(colIndex, task) {
+                    this.editingTask = { ...JSON.parse(JSON.stringify(task)), colIndex };
+                    this.isEditModalOpen = true;
+                },
                 closeEditModal() { this.isEditModalOpen = false; },
                 saveEdit() {
                     const col = this.columns[this.editingTask.colIndex];
@@ -296,19 +386,27 @@
                     this.closeEditModal();
                 },
                 exportData() {
-                    const blob = new Blob([JSON.stringify(this.columns)], { type: 'application/json' });
-                    const link = document.createElement('a');
-                    link.href = URL.createObjectURL(blob);
-                    link.download = `kanban-export.json`;
-                    link.click();
+                    try {
+                        const blob = new Blob([JSON.stringify(this.columns)], { type: 'application/json' });
+                        const link = document.createElement('a');
+                        link.href = URL.createObjectURL(blob);
+                        link.download = `kanban-export-v4-pro.json`;
+                        link.click();
+                    } catch (e) {
+                        this.pushError("Error: Failed to generate export file. Try using another browser.");
+                    }
                 },
                 importData(e) {
                     const file = e.target.files[0];
                     if (!file) return;
                     const reader = new FileReader();
                     reader.onload = (ev) => {
-                        const imported = JSON.parse(ev.target.result);
-                        if (Array.isArray(imported)) { this.columns = imported; this.save(); }
+                        try {
+                            const imported = JSON.parse(ev.target.result);
+                            if (Array.isArray(imported)) { this.columns = imported; this.save(); }
+                        } catch (err) {
+                            this.pushError("Error: The imported JSON file is corrupt or has an invalid format. No data was loaded.");
+                        }
                     };
                     reader.readAsText(file);
                 }
