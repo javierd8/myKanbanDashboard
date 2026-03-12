@@ -3,11 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Zenith Kanban | Pro</title>
+    <title>Zenith Kanban | Engineering Edition</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <script>
-        tailwind.config = { darkMode: 'class' }
-    </script>
+    <script>tailwind.config = { darkMode: 'class' }</script>
     <script defer src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js"></script>
     <style>
         [x-cloak] { display: none !important; }
@@ -20,14 +18,11 @@
 </head>
 <body class="bg-slate-50 text-slate-900 dark:text-slate-100 font-sans antialiased theme-transition dark:bg-slate-950">
 
-    <header class="bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 px-6 py-4 flex flex-wrap justify-between items-center sticky top-0 z-10 gap-4">
+    <header class="bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 px-6 py-4 flex flex-wrap justify-between items-center sticky top-0 z-20 gap-4">
         <h1 class="text-xl font-bold bg-gradient-to-r from-indigo-600 to-violet-600 bg-clip-text text-transparent">Zenith Kanban</h1>
-        
         <div class="flex flex-1 max-w-md mx-4">
-            <input type="text" x-model="searchQuery" placeholder="Filter tasks..." 
-                   class="w-full bg-slate-100 dark:bg-slate-800 border-none rounded-lg px-4 py-1.5 text-sm focus:ring-2 focus:ring-indigo-500 outline-none dark:text-slate-200">
+            <input type="text" x-model="searchQuery" placeholder="Filter tasks..." class="w-full bg-slate-100 dark:bg-slate-800 border-none rounded-lg px-4 py-1.5 text-sm focus:ring-2 focus:ring-indigo-500 outline-none">
         </div>
-
         <div class="flex items-center gap-4">
             <button @click="toggleTheme()" class="p-2 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors">
                 <span x-show="!darkMode">🌙</span><span x-show="darkMode" x-cloak>☀️</span>
@@ -45,8 +40,14 @@
         <template x-for="(column, colIndex) in columns" :key="column.id">
             <div class="flex-shrink-0 w-80 bg-slate-200/50 dark:bg-slate-900/40 rounded-xl p-4 flex flex-col max-h-full border border-transparent dark:border-slate-800">
                 <div class="flex justify-between items-center mb-4">
-                    <h2 class="font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider text-sm" x-text="column.name"></h2>
-                    <span class="bg-white dark:bg-slate-800 px-2 py-0.5 rounded text-xs font-bold text-slate-400 border dark:border-slate-700" x-text="filteredTasks(column.tasks).length"></span>
+                    <div class="flex items-center gap-2">
+                        <h2 class="font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider text-sm" x-text="column.name"></h2>
+                        <button @click="sortColumn(colIndex)" class="text-[10px] bg-slate-200 dark:bg-slate-700 px-1.5 rounded hover:bg-indigo-500 hover:text-white" title="Sort by Priority">SORT</button>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <button @click="confirmClearColumn(colIndex)" class="text-[10px] text-red-400 hover:text-red-600 font-bold uppercase" title="Clear All Tasks in Column">Clear</button>
+                        <span class="bg-white dark:bg-slate-800 px-2 py-0.5 rounded text-xs font-bold text-slate-400 border dark:border-slate-700" x-text="filteredTasks(column.tasks).length"></span>
+                    </div>
                 </div>
 
                 <div class="space-y-3 overflow-y-auto flex-grow min-h-[100px]" @dragover.prevent @drop="drop($event, colIndex)">
@@ -55,63 +56,61 @@
                              draggable="true" @dragstart="dragStart($event, colIndex, task.id)">
                             
                             <div class="flex justify-between items-start mb-2">
-                                <span :class="{
-                                    'px-2 py-0.5 rounded text-[10px] font-bold uppercase': true,
-                                    'bg-red-100 text-red-600 dark:bg-red-900/30 dark:text-red-400': task.priority === 'high',
-                                    'bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400': task.priority === 'med',
-                                    'bg-slate-100 text-slate-600 dark:bg-slate-700 dark:text-slate-400': task.priority === 'low'
-                                }" x-text="task.priority"></span>
-                                
+                                <div class="flex flex-wrap gap-1">
+                                    <span :class="priorityClass(task.priority)" x-text="task.priority"></span>
+                                    <template x-if="task.deadline">
+                                        <span :class="deadlineClass(task.deadline)" class="px-2 py-0.5 rounded text-[10px] font-bold" x-text="formatDate(task.deadline)"></span>
+                                    </template>
+                                </div>
                                 <div class="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
                                     <button @click="openEditModal(colIndex, task)" class="text-slate-400 hover:text-indigo-500 text-xs">Edit</button>
-                                    <button @click="deleteTask(colIndex, task.id)" class="text-slate-400 hover:text-red-500 text-lg leading-none">&times;</button>
+                                    <button @click="confirmDelete(colIndex, task.id)" class="text-slate-400 hover:text-red-500 text-lg leading-none">&times;</button>
                                 </div>
                             </div>
-                            <p class="text-sm font-medium text-slate-700 dark:text-slate-200 break-words whitespace-pre-wrap" x-text="task.content"></p>
+                            <p class="text-sm font-medium text-slate-700 dark:text-slate-200 break-words whitespace-pre-wrap mb-2" x-text="task.content"></p>
+                            
+                            <template x-if="task.checklists && task.checklists.length > 0">
+                                <div class="mt-2 pt-2 border-t dark:border-slate-700">
+                                    <div class="flex justify-between text-[10px] text-slate-400 mb-1">
+                                        <span x-text="completedCount(task) + '/' + task.checklists.length + ' tasks'"></span>
+                                        <span x-text="Math.round((completedCount(task)/task.checklists.length)*100) + '%'"></span>
+                                    </div>
+                                    <div class="w-full bg-slate-100 dark:bg-slate-700 h-1 rounded-full overflow-hidden">
+                                        <div class="bg-indigo-500 h-full transition-all" :style="'width:' + (completedCount(task)/task.checklists.length)*100 + '%'"></div>
+                                    </div>
+                                </div>
+                            </template>
                         </div>
                     </template>
+                    
+                    <button @click="column.isAdding = true" x-show="!column.isAdding" class="w-full py-2 border-2 border-dashed border-slate-300 dark:border-slate-700 rounded-lg text-slate-400 text-sm hover:border-indigo-400 hover:text-indigo-500">+ Add Task</button>
+                    
+                    <div x-show="column.isAdding" x-cloak class="bg-white dark:bg-slate-800 p-3 rounded-lg shadow-md border border-indigo-200 dark:border-indigo-900 space-y-3">
+                        <textarea x-model="newTaskContent" class="w-full text-sm p-2 border border-slate-200 dark:border-slate-700 dark:bg-slate-900 rounded outline-none focus:ring-2 focus:ring-indigo-500 dark:text-slate-200" placeholder="Task description..."></textarea>
+                        
+                        <div class="space-y-1">
+                            <template x-for="(st, i) in newTaskSubtasks" :key="i">
+                                <div class="flex gap-1 items-center">
+                                    <input type="text" x-model="newTaskSubtasks[i].text" class="flex-1 text-[10px] bg-slate-50 dark:bg-slate-900 border-none rounded py-1 px-2" placeholder="Sub-task...">
+                                    <button @click="newTaskSubtasks.splice(i,1)" class="text-slate-300 hover:text-red-500 text-xs">&times;</button>
+                                </div>
+                            </template>
+                            <button @click="newTaskSubtasks.push({text:'', done:false})" class="text-[10px] text-indigo-500 font-bold hover:underline">+ Add Sub-task</button>
+                        </div>
 
-                    <button @click="column.isAdding = true" x-show="!column.isAdding" 
-                            class="w-full py-2 border-2 border-dashed border-slate-300 dark:border-slate-700 rounded-lg text-slate-400 text-sm hover:border-indigo-400 hover:text-indigo-500">
-                        + Add Task
-                    </button>
-
-                    <div x-show="column.isAdding" x-cloak class="bg-white dark:bg-slate-800 p-3 rounded-lg shadow-md border border-indigo-200 dark:border-indigo-900">
-                        <textarea x-model="newTaskContent" class="w-full text-sm p-2 border border-slate-200 dark:border-slate-700 dark:bg-slate-900 rounded mb-2 outline-none focus:ring-2 focus:ring-indigo-500 dark:text-slate-200" placeholder="Task description..."></textarea>
-                        <div class="flex gap-2">
+                        <div class="flex gap-2 items-center">
                             <select x-model="newTaskPriority" class="text-xs border dark:border-slate-700 dark:bg-slate-900 rounded px-1 dark:text-slate-300">
                                 <option value="low">Low</option><option value="med">Med</option><option value="high">High</option>
                             </select>
+                            <div class="flex-grow"></div>
                             <button @click="addTask(colIndex)" class="bg-indigo-600 text-white px-3 py-1 rounded text-xs hover:bg-indigo-700">Save</button>
-                            <button @click="column.isAdding = false" class="text-slate-400 text-xs hover:text-slate-600">Cancel</button>
+                            <button @click="cancelAddTask(colIndex)" class="text-slate-400 text-xs hover:text-slate-600">Cancel</button>
                         </div>
                     </div>
                 </div>
             </div>
         </template>
     </main>
-
-    <div x-show="isEditModalOpen" x-cloak class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm" @keydown.escape.window="closeEditModal()">
-        <div class="bg-white dark:bg-slate-900 w-full max-w-md rounded-xl shadow-2xl border border-slate-200 dark:border-slate-800 overflow-hidden" @click.away="closeEditModal()">
-            <div class="p-6">
-                <h3 class="text-lg font-bold mb-4 dark:text-white">Edit Task</h3>
-                <textarea x-model="editingTask.content" class="w-full h-32 text-sm p-3 border border-slate-200 dark:border-slate-700 dark:bg-slate-800 rounded-lg mb-4 outline-none focus:ring-2 focus:ring-indigo-500 dark:text-slate-200"></textarea>
-                
-                <div class="flex justify-between items-center">
-                    <div>
-                        <label class="block text-[10px] font-bold uppercase text-slate-400 mb-1">Priority</label>
-                        <select x-model="editingTask.priority" class="text-sm border dark:border-slate-700 dark:bg-slate-800 rounded px-2 py-1 dark:text-slate-300">
-                            <option value="low">Low</option><option value="med">Med</option><option value="high">High</option>
-                        </select>
-                    </div>
-                    <div class="flex gap-3">
-                        <button @click="closeEditModal()" class="text-slate-500 hover:text-slate-700 text-sm font-medium">Cancel</button>
-                        <button @click="saveEdit()" class="bg-indigo-600 text-white px-6 py-2 rounded-lg text-sm font-bold hover:bg-indigo-700 shadow-lg shadow-indigo-500/30">Save Changes</button>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
 
     <script>
         function kanbanApp() {
@@ -125,11 +124,9 @@
                 searchQuery: '',
                 newTaskContent: '',
                 newTaskPriority: 'med',
-                dragInfo: null,
-                
-                // Edit Modal State
+                newTaskSubtasks: [],
                 isEditModalOpen: false,
-                editingTask: { id: null, content: '', priority: '', colIndex: null },
+                editingTask: { id: null, content: '', priority: '', deadline: '', checklists: [], colIndex: null },
 
                 init() {
                     const savedData = localStorage.getItem('zenith_data');
@@ -152,71 +149,103 @@
 
                 addTask(colIndex) {
                     if (!this.newTaskContent.trim()) return;
-                    this.columns[colIndex].tasks.push({ id: Date.now(), content: this.newTaskContent, priority: this.newTaskPriority });
-                    this.newTaskContent = ''; this.columns[colIndex].isAdding = false; this.save();
+                    this.columns[colIndex].tasks.push({ 
+                        id: Date.now(), 
+                        content: this.newTaskContent, 
+                        priority: this.newTaskPriority,
+                        deadline: '',
+                        checklists: this.newTaskSubtasks.filter(s => s.text.trim() !== '')
+                    });
+                    this.cancelAddTask(colIndex);
+                    this.save();
                 },
 
-                // NEW: Edit Modal Logic
+                cancelAddTask(colIndex) {
+                    this.newTaskContent = '';
+                    this.newTaskSubtasks = [];
+                    this.columns[colIndex].isAdding = false;
+                },
+
+                confirmDelete(colIdx, id) {
+                    if (confirm("Are you sure you want to delete this task?")) {
+                        this.columns[colIdx].tasks = this.columns[colIdx].tasks.filter(t => t.id !== id);
+                        this.save();
+                    }
+                },
+
+                confirmClearColumn(colIdx) {
+                    if (confirm(`Delete ALL tasks in ${this.columns[colIdx].name}? This cannot be undone.`)) {
+                        this.columns[colIdx].tasks = [];
+                        this.save();
+                    }
+                },
+
+                sortColumn(colIndex) {
+                    const pMap = { high: 1, med: 2, low: 3 };
+                    this.columns[colIndex].tasks.sort((a, b) => pMap[a.priority] - pMap[b.priority]);
+                    this.save();
+                },
+
+                priorityClass(p) {
+                    const base = "px-2 py-0.5 rounded text-[10px] font-bold uppercase ";
+                    if (p === 'high') return base + "bg-red-100 text-red-600 dark:bg-red-900/30 dark:text-red-400";
+                    if (p === 'med') return base + "bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400";
+                    return base + "bg-slate-100 text-slate-600 dark:bg-slate-700 dark:text-slate-400";
+                },
+
+                deadlineClass(d) {
+                    const overdue = new Date(d) < new Date().setHours(0,0,0,0);
+                    return overdue ? "bg-red-500 text-white" : "bg-slate-200 dark:bg-slate-700 text-slate-500 dark:text-slate-400";
+                },
+
+                formatDate(d) { return d.split('-').slice(1).join('/'); },
+                completedCount(t) { return t.checklists.filter(c => c.done).length; },
+
                 openEditModal(colIndex, task) {
-                    this.editingTask = { ...task, colIndex };
+                    this.editingTask = { ...JSON.parse(JSON.stringify(task)), colIndex };
                     this.isEditModalOpen = true;
                 },
 
-                closeEditModal() {
-                    this.isEditModalOpen = false;
-                },
+                closeEditModal() { this.isEditModalOpen = false; },
 
                 saveEdit() {
                     const col = this.columns[this.editingTask.colIndex];
-                    const taskIndex = col.tasks.findIndex(t => t.id === this.editingTask.id);
-                    if (taskIndex !== -1) {
-                        col.tasks[taskIndex].content = this.editingTask.content;
-                        col.tasks[taskIndex].priority = this.editingTask.priority;
+                    const idx = col.tasks.findIndex(t => t.id === this.editingTask.id);
+                    if (idx !== -1) {
+                        col.tasks[idx] = { ...this.editingTask };
                         this.save();
                     }
                     this.closeEditModal();
                 },
 
-                deleteTask(colIndex, taskId) {
-                    this.columns[colIndex].tasks = this.columns[colIndex].tasks.filter(t => t.id !== taskId);
-                    this.save();
-                },
-
-                dragStart(e, colIndex, taskId) { 
-                    this.dragInfo = { colIndex, taskId }; 
-                    e.dataTransfer.effectAllowed = 'move';
-                },
-
-                drop(e, targetColIndex) {
+                dragStart(e, colIdx, id) { this.dragInfo = { colIndex: colIdx, taskId: id }; },
+                drop(e, targetIdx) {
                     if (!this.dragInfo) return;
                     const { colIndex, taskId } = this.dragInfo;
-                    const taskIndex = this.columns[colIndex].tasks.findIndex(t => t.id === taskId);
-                    if (taskIndex > -1) {
-                        const task = this.columns[colIndex].tasks.splice(taskIndex, 1)[0];
-                        this.columns[targetColIndex].tasks.push(task);
-                        this.save();
-                    }
+                    const idx = this.columns[colIndex].tasks.findIndex(t => t.id === taskId);
+                    const task = this.columns[colIndex].tasks.splice(idx, 1)[0];
+                    this.columns[targetIdx].tasks.push(task);
+                    this.save();
                     this.dragInfo = null;
                 },
 
                 exportData() {
                     const blob = new Blob([JSON.stringify(this.columns)], { type: 'application/json' });
-                    const url = URL.createObjectURL(blob);
                     const link = document.createElement('a');
-                    link.href = url;
-                    link.download = `kanban-backup-${new Date().toISOString().split('T')[0]}.json`;
+                    link.href = URL.createObjectURL(blob);
+                    link.download = `kanban-export.json`;
                     link.click();
                 },
 
-                importData(event) {
-                    const file = event.target.files[0];
+                importData(e) {
+                    const file = e.target.files[0];
                     if (!file) return;
                     const reader = new FileReader();
-                    reader.onload = (e) => {
+                    reader.onload = (ev) => {
                         try {
-                            const imported = JSON.parse(e.target.result);
+                            const imported = JSON.parse(ev.target.result);
                             if (Array.isArray(imported)) { this.columns = imported; this.save(); }
-                        } catch (err) { alert("Invalid JSON."); }
+                        } catch(e) { alert("Invalid File Format"); }
                     };
                     reader.readAsText(file);
                 }
