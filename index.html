@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Zenith Kanban | Private & Local</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script defer src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js"></script>
+    <style>
+        [x-cloak] { display: none !important; }
+        .ghost { opacity: 0.5; background: #f3f4f6; border: 2px dashed #cbd5e1; }
+    </style>
+</head>
+<body class="bg-slate-50 text-slate-900 font-sans antialiased" x-data="kanbanApp()" x-init="init()">
+
+    <header class="bg-white border-b border-slate-200 px-6 py-4 flex justify-between items-center sticky top-0 z-10">
+        <h1 class="text-xl font-bold bg-gradient-to-r from-indigo-600 to-violet-600 bg-clip-text text-transparent">Zenith Kanban</h1>
+        <div class="flex gap-3">
+            <button @click="clearAll()" class="text-xs text-red-500 hover:underline">Clear Board</button>
+            <button @click="exportData()" class="px-3 py-1 bg-slate-100 rounded-md text-sm font-medium hover:bg-slate-200">Export JSON</button>
+        </div>
+    </header>
+
+    <main class="p-6 h-[calc(100-72px)] overflow-x-auto flex gap-6 items-start">
+        <template x-for="(column, colIndex) in columns" :key="column.id">
+            <div class="flex-shrink-0 w-80 bg-slate-100 rounded-xl p-4 flex flex-col max-h-full">
+                <div class="flex justify-between items-center mb-4">
+                    <h2 class="font-bold text-slate-600 uppercase tracking-wider text-sm" x-text="column.name"></h2>
+                    <span class="bg-white px-2 py-0.5 rounded text-xs font-bold text-slate-400" x-text="column.tasks.length"></span>
+                </div>
+
+                <div class="space-y-3 overflow-y-auto flex-grow min-h-[50px]" 
+                     @dragover.prevent 
+                     @drop="drop($event, colIndex)">
+                    
+                    <template x-for="(task, taskIndex) in column.tasks" :key="task.id">
+                        <div class="bg-white p-4 rounded-lg shadow-sm border border-slate-200 cursor-grab active:cursor-grabbing group"
+                             draggable="true" 
+                             @dragstart="dragStart($event, colIndex, taskIndex)">
+                            
+                            <div class="flex justify-between items-start mb-2">
+                                <span :class="{
+                                    'px-2 py-0.5 rounded text-[10px] font-bold uppercase': true,
+                                    'bg-red-100 text-red-600': task.priority === 'high',
+                                    'bg-blue-100 text-blue-600': task.priority === 'med',
+                                    'bg-slate-100 text-slate-600': task.priority === 'low'
+                                }" x-text="task.priority"></span>
+                                <button @click="deleteTask(colIndex, taskIndex)" class="opacity-0 group-hover:opacity-100 text-slate-300 hover:text-red-500 transition-opacity">
+                                    &times;
+                                </button>
+                            </div>
+                            <p class="text-sm font-medium text-slate-700" x-text="task.content"></p>
+                        </div>
+                    </template>
+
+                    <button @click="column.isAdding = true" x-show="!column.isAdding" 
+                            class="w-full py-2 border-2 border-dashed border-slate-300 rounded-lg text-slate-400 text-sm hover:border-indigo-400 hover:text-indigo-500 transition-all">
+                        + Add Task
+                    </button>
+
+                    <div x-show="column.isAdding" x-cloak class="bg-white p-3 rounded-lg shadow-md border border-indigo-200">
+                        <textarea x-model="newTaskContent" class="w-full text-sm p-2 border border-slate-200 rounded mb-2 focus:ring-2 focus:ring-indigo-500 outline-none" placeholder="Task description..."></textarea>
+                        <div class="flex gap-2">
+                            <select x-model="newTaskPriority" class="text-xs border rounded px-1">
+                                <option value="low">Low</option>
+                                <option value="med" selected>Med</option>
+                                <option value="high">High</option>
+                            </select>
+                            <button @click="addTask(colIndex)" class="bg-indigo-600 text-white px-3 py-1 rounded text-xs hover:bg-indigo-700">Save</button>
+                            <button @click="column.isAdding = false" class="text-slate-400 text-xs hover:text-slate-600">Cancel</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </template>
+    </main>
+
+    <script>
+        function kanbanApp() {
+            return {
+                columns: [
+                    { id: 1, name: 'To Do', tasks: [], isAdding: false },
+                    { id: 2, name: 'In Progress', tasks: [], isAdding: false },
+                    { id: 3, name: 'Done', tasks: [], isAdding: false }
+                ],
+                newTaskContent: '',
+                newTaskPriority: 'med',
+                draggedTask: null,
+
+                init() {
+                    const saved = localStorage.getItem('zenith_data');
+                    if (saved) this.columns = JSON.parse(saved);
+                },
+
+                save() {
+                    localStorage.setItem('zenith_data', JSON.stringify(this.columns));
+                },
+
+                addTask(colIndex) {
+                    if (!this.newTaskContent.trim()) return;
+                    this.columns[colIndex].tasks.push({
+                        id: Date.now(),
+                        content: this.newTaskContent,
+                        priority: this.newTaskPriority
+                    });
+                    this.newTaskContent = '';
+                    this.columns[colIndex].isAdding = false;
+                    this.save();
+                },
+
+                deleteTask(colIndex, taskIndex) {
+                    this.columns[colIndex].tasks.splice(taskIndex, 1);
+                    this.save();
+                },
+
+                dragStart(e, colIndex, taskIndex) {
+                    this.draggedTask = { colIndex, taskIndex };
+                    e.dataTransfer.effectAllowed = 'move';
+                },
+
+                drop(e, targetColIndex) {
+                    const { colIndex, taskIndex } = this.draggedTask;
+                    const task = this.columns[colIndex].tasks.splice(taskIndex, 1)[0];
+                    this.columns[targetColIndex].tasks.push(task);
+                    this.save();
+                    this.draggedTask = null;
+                },
+
+                exportData() {
+                    const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(this.columns));
+                    const downloadAnchorNode = document.createElement('a');
+                    downloadAnchorNode.setAttribute("href", dataStr);
+                    downloadAnchorNode.setAttribute("download", "kanban_backup.json");
+                    document.body.appendChild(downloadAnchorNode);
+                    downloadAnchorNode.click();
+                    downloadAnchorNode.remove();
+                },
+
+                clearAll() {
+                    if(confirm("Wipe the board? This cannot be undone.")) {
+                        this.columns.forEach(c => c.tasks = []);
+                        this.save();
+                    }
+                }
+            }
+        }
+    </script>
+</body>
+</html>
