@@ -17,13 +17,16 @@
         .ina-border { border: 4px solid #6b5a8e; }
         .theme-transition { transition: background-color 0.3s, color 0.3s; }
         
-        /* Themed Background Pattern Rules */
         .themed-bg {
             background-repeat: repeat;
             background-size: initial;
             background-position: top left;
             background-attachment: fixed;
         }
+        
+        /* Forces the Tenor embed to fit the avatar box */
+        .tenor-container { position: relative; overflow: hidden; pointer-events: none; }
+        .tenor-container iframe { position: absolute; top: 0; left: 0; width: 100% !important; height: 100% !important; }
     </style>
 </head>
 <body class="themed-bg bg-slate-50 text-slate-900 dark:text-slate-100 font-sans antialiased theme-transition dark:bg-slate-950 min-h-screen flex flex-col"
@@ -31,18 +34,15 @@
 
     <header class="bg-white/80 dark:bg-slate-900/80 backdrop-blur-md border-b border-slate-200 dark:border-slate-800 px-6 py-4 flex flex-wrap justify-between items-center sticky top-0 z-20 gap-4">
         <div class="flex items-center gap-6">
-            <div class="flex-shrink-0">
-                <img src="https://media1.tenor.com/m/Yw_D4vS99z8AAAAC/%E3%81%AB%E3%81%AE%E3%81%BE%E3%81%88%E3%81%84%E3%81%AA%E3%81%AB%E3%81%99-%E3%83%9B%E3%83%AD%E3%83%A9%E3%82%A4%E3%83%96.gif" 
-                     alt="Ninomae Ina'nis" 
-                     class="w-24 h-24 rounded-xl shadow-lg ina-border object-cover bg-slate-200">
+            
+            <div class="flex-shrink-0 w-24 h-24 rounded-xl shadow-lg ina-border bg-slate-200 tenor-container flex items-center justify-center">
+                <div class="tenor-gif-embed" data-postid="26108945" data-share-method="host" data-aspect-ratio="1" data-width="100%"></div> 
+                <script type="text/javascript" async src="https://tenor.com/embed.js"></script>
             </div>
             
             <div class="flex flex-col">
-                <div class="flex items-center gap-2">
-                    <span class="text-2xl">🐙</span>
-                    <h1 class="text-2xl font-black bg-gradient-to-r from-indigo-600 to-purple-500 bg-clip-text text-transparent uppercase tracking-tight">Kanban Dashboard Pro</h1>
-                </div>
-                <button @click="resetToDefault()" class="text-[10px] w-fit font-bold text-slate-400 hover:text-orange-500 uppercase border border-slate-200 dark:border-slate-700 px-2 py-0.5 rounded mt-1">Reset Columns</button>
+                <h1 class="text-2xl font-black bg-gradient-to-r from-indigo-600 to-purple-500 bg-clip-text text-transparent uppercase tracking-tight">Kanban Dashboard Pro</h1>
+                <button @click="resetToDefault()" class="text-[10px] w-fit font-bold text-slate-400 hover:text-orange-500 uppercase border border-slate-200 dark:border-slate-700 px-2 py-0.5 rounded mt-1 transition-colors">Reset Columns</button>
             </div>
         </div>
 
@@ -51,7 +51,7 @@
         </div>
 
         <div class="flex items-center gap-4">
-            <button @click="toggleTheme()" class="p-2 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors">
+            <button @click="toggleTheme()" class="p-2 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors" title="Toggle Theme">
                 <span x-show="!darkMode">🌙</span><span x-show="darkMode" x-cloak>☀️</span>
             </button>
             <div class="flex gap-2 border-l dark:border-slate-700 pl-4">
@@ -64,11 +64,14 @@
         </div>
     </header>
 
-    <div x-show="errors.length > 0" x-cloak class="p-6">
+    <div x-show="errors.length > 0" x-cloak class="p-6 pb-0 z-30 relative">
         <template x-for="(error, index) in errors" :key="index">
-            <div class="bg-red-100 border-l-4 border-red-500 text-red-700 p-4 mb-4 rounded-lg shadow-md flex justify-between items-center">
-                <p x-text="error.message"></p>
-                <button @click="clearError(index)" class="text-red-500 font-bold ml-4">&times;</button>
+            <div class="bg-red-100 border-l-4 border-red-500 text-red-700 p-4 mb-2 rounded-lg shadow-md flex justify-between items-center">
+                <div class="flex items-center gap-3">
+                    <span class="font-bold text-xl">!</span>
+                    <p class="text-sm font-semibold" x-text="error.message"></p>
+                </div>
+                <button @click="clearError(index)" class="text-red-500 hover:text-red-800 font-bold ml-4 text-xl leading-none">&times;</button>
             </div>
         </template>
     </div>
@@ -176,7 +179,7 @@
                     <button @click="editingTask.checklists.push({text: '', done: false})" class="text-xs text-purple-500 font-black hover:underline uppercase">+ Add Sub-task</button>
                 </div>
             </div>
-            <div class="p-4 bg-slate-50 dark:bg-slate-900/50 flex justify-end gap-3 border-t dark:border-slate-700">
+            <div class="p-4 bg-slate-50 dark:bg-slate-900/50 flex justify-end gap-3 border-t dark:border-slate-800">
                 <button @click="closeEditModal()" class="text-slate-500 hover:text-slate-700 text-sm font-bold uppercase">Cancel</button>
                 <button @click="saveEdit()" class="bg-indigo-600 text-white px-8 py-2.5 rounded-xl text-sm font-black hover:bg-indigo-700 shadow-lg shadow-indigo-500/20">SAVE CHANGES</button>
             </div>
@@ -196,15 +199,11 @@
                 editingTask: { id: null, content: '', priority: '', deadline: '', checklists: [], colIndex: null },
                 dragInfo: null,
                 colDragIndex: null,
-                
-                // Error handling state
                 errors: [],
-                rootPath: '', // calculated automatically
-                imageUrls: {}, // calculated automatically
+                rootPath: '',
+                imageUrls: {},
 
                 init() {
-                    // 1. Calculate and set the relative root path for images
-                    // Accounts for running index.html from root, or a /test/ subfolder
                     const isSubFolder = location.pathname.includes('/test/') || location.pathname.includes('/main/');
                     this.rootPath = isSubFolder ? '../' : '';
 
@@ -214,17 +213,15 @@
                         darkBg: this.rootPath + 'images/image_2.png'
                     };
 
-                    // Set favicon path in JavaScript to work in subfolders
                     try {
                         document.getElementById('favicon').href = this.imageUrls.takoIcon;
                     } catch (e) {
-                        this.errors.push({ message: 'Critical Error: Failed to set website icon.' });
+                        this.logError('Failed to load website icon', e);
                     }
 
-                    // 2. Wrap local storage in try...catch
                     try {
-                        const savedData = localStorage.getItem('kanban_v4_pro');
-                        const savedTheme = localStorage.getItem('kanban_theme_v4');
+                        const savedData = localStorage.getItem('kanban_v5_pro');
+                        const savedTheme = localStorage.getItem('kanban_theme_v5');
                         if (savedData) {
                             this.columns = JSON.parse(savedData);
                         } else {
@@ -232,24 +229,26 @@
                         }
                         if (savedTheme !== null) this.darkMode = JSON.parse(savedTheme);
                     } catch (e) {
-                        this.errors.push({ message: 'Error: Failed to load data from LocalStorage. The app might be running with temporary data.' });
-                        // fallback to a clean state if data loading fails
+                        this.logError('Failed to load LocalStorage Data', e);
                         this.resetToDefault(false);
                     }
                 },
 
                 save() {
-                    // Wrapped in try...catch to prevent a single failure from affecting other features
                     try {
-                        localStorage.setItem('kanban_v4_pro', JSON.stringify(this.columns));
-                        localStorage.setItem('kanban_theme_v4', JSON.stringify(this.darkMode));
+                        localStorage.setItem('kanban_v5_pro', JSON.stringify(this.columns));
+                        localStorage.setItem('kanban_theme_v5', JSON.stringify(this.darkMode));
                     } catch (e) {
-                        this.errors.push({ message: 'Error: Failed to save changes to LocalStorage. If you clear your browser data, your work will be lost.' });
+                        this.logError('Failed to save to LocalStorage', e);
                     }
                 },
 
-                // Error UI helper functions
-                pushError(msg) { this.errors.push({ message: msg }); },
+                // Push to UI and Developer Console
+                logError(uiMessage, technicalError) { 
+                    this.errors.push({ message: uiMessage }); 
+                    console.error("KANBAN DASHBOARD ERROR:", technicalError);
+                },
+                
                 clearError(index) { this.errors.splice(index, 1); },
 
                 resetToDefault(confirmAction = true) {
@@ -270,11 +269,11 @@
                     }
                 },
 
-                // Task Drag Logic
                 dragStart(e, colIdx, id) { 
                     this.dragInfo = { colIndex: colIdx, taskId: id }; 
                     e.dataTransfer.setData('type', 'task');
                 },
+                
                 drop(e, targetIdx) {
                     if (!this.dragInfo) return;
                     try {
@@ -286,17 +285,17 @@
                             this.save();
                         }
                     } catch (e) {
-                        this.pushError("Error: Task drag and drop failed. Try refreshing the page.");
+                        this.logError("Task drag and drop failed.", e);
                     } finally {
                         this.dragInfo = null;
                     }
                 },
 
-                // Column Drag Logic
                 colDragStart(e, idx) {
                     this.colDragIndex = idx;
                     e.dataTransfer.setData('type', 'column');
                 },
+                
                 colDrop(e, targetIdx) {
                     if (this.colDragIndex === null) return;
                     try {
@@ -304,7 +303,7 @@
                         this.columns.splice(targetIdx, 0, col);
                         this.save();
                     } catch (e) {
-                        this.pushError("Error: Column reordering failed. Try refreshing the page.");
+                        this.logError("Column reordering failed.", e);
                     } finally {
                         this.colDragIndex = null;
                     }
@@ -330,7 +329,7 @@
                 },
 
                 confirmDeleteColumn(idx) {
-                    if (confirm(`Delete column "${this.columns[idx].name}" and ALL its tasks? This action cannot be undone.`)) {
+                    if (confirm(`Delete column "${this.columns[idx].name}" and ALL its tasks?`)) {
                         this.columns.splice(idx, 1);
                         this.save();
                     }
@@ -390,10 +389,10 @@
                         const blob = new Blob([JSON.stringify(this.columns)], { type: 'application/json' });
                         const link = document.createElement('a');
                         link.href = URL.createObjectURL(blob);
-                        link.download = `kanban-export-v4-pro.json`;
+                        link.download = `kanban-export-v5.json`;
                         link.click();
                     } catch (e) {
-                        this.pushError("Error: Failed to generate export file. Try using another browser.");
+                        this.logError("Failed to generate JSON export file.", e);
                     }
                 },
                 importData(e) {
@@ -405,7 +404,7 @@
                             const imported = JSON.parse(ev.target.result);
                             if (Array.isArray(imported)) { this.columns = imported; this.save(); }
                         } catch (err) {
-                            this.pushError("Error: The imported JSON file is corrupt or has an invalid format. No data was loaded.");
+                            this.logError("The imported JSON file is corrupt or has an invalid format.", err);
                         }
                     };
                     reader.readAsText(file);
