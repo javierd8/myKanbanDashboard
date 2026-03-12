@@ -6,11 +6,7 @@
     <title>Zenith Kanban | Pro</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
-        // Force Tailwind to use the 'class' strategy for dark mode
-        tailwind.config = { 
-            darkMode: 'class',
-            theme: { extend: {} } 
-        }
+        tailwind.config = { darkMode: 'class' }
     </script>
     <script defer src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js"></script>
     <style>
@@ -19,36 +15,35 @@
         ::-webkit-scrollbar-track { background: transparent; }
         ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
         .dark ::-webkit-scrollbar-thumb { background: #334155; }
-        /* Smooth transitions for theme switching */
-        .theme-transition { transition: background-color 0.3s, border-color 0.3s, color 0.3s; }
+        .theme-transition { transition: background-color 0.3s, color 0.3s; }
     </style>
 </head>
 <body class="bg-slate-50 text-slate-900 dark:text-slate-100 font-sans antialiased theme-transition dark:bg-slate-950">
 
-    <header class="bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 px-6 py-4 flex flex-wrap justify-between items-center sticky top-0 z-10 gap-4 transition-colors">
+    <header class="bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 px-6 py-4 flex flex-wrap justify-between items-center sticky top-0 z-10 gap-4">
         <h1 class="text-xl font-bold bg-gradient-to-r from-indigo-600 to-violet-600 bg-clip-text text-transparent">Zenith Kanban</h1>
         
         <div class="flex flex-1 max-w-md mx-4">
             <input type="text" x-model="searchQuery" placeholder="Filter tasks..." 
-                   class="w-full bg-slate-100 dark:bg-slate-800 border-none rounded-lg px-4 py-1.5 text-sm focus:ring-2 focus:ring-indigo-500 outline-none text-slate-700 dark:text-slate-200">
+                   class="w-full bg-slate-100 dark:bg-slate-800 border-none rounded-lg px-4 py-1.5 text-sm focus:ring-2 focus:ring-indigo-500 outline-none dark:text-slate-200">
         </div>
 
         <div class="flex items-center gap-4">
-            <button @click="toggleTheme()" class="p-2 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors" title="Toggle Dark Mode">
+            <button @click="toggleTheme()" class="p-2 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors">
                 <span x-show="!darkMode">🌙</span><span x-show="darkMode" x-cloak>☀️</span>
             </button>
             <div class="flex gap-2 border-l dark:border-slate-700 pl-4">
-                <label class="cursor-pointer px-3 py-1 bg-slate-100 dark:bg-slate-800 rounded-md text-sm font-medium hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors">
+                <label class="cursor-pointer px-3 py-1 bg-slate-100 dark:bg-slate-800 rounded-md text-sm font-medium hover:bg-slate-200 dark:hover:bg-slate-700">
                     Import <input type="file" class="hidden" @change="importData($event)">
                 </label>
-                <button @click="exportData()" class="px-3 py-1 bg-indigo-600 text-white rounded-md text-sm font-medium hover:bg-indigo-700 transition-colors">Export</button>
+                <button @click="exportData()" class="px-3 py-1 bg-indigo-600 text-white rounded-md text-sm font-medium hover:bg-indigo-700">Export</button>
             </div>
         </div>
     </header>
 
     <main class="p-6 h-[calc(100vh-80px)] overflow-x-auto flex gap-6 items-start">
         <template x-for="(column, colIndex) in columns" :key="column.id">
-            <div class="flex-shrink-0 w-80 bg-slate-200/50 dark:bg-slate-900/40 rounded-xl p-4 flex flex-col max-h-full border border-transparent dark:border-slate-800 transition-colors">
+            <div class="flex-shrink-0 w-80 bg-slate-200/50 dark:bg-slate-900/40 rounded-xl p-4 flex flex-col max-h-full border border-transparent dark:border-slate-800">
                 <div class="flex justify-between items-center mb-4">
                     <h2 class="font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider text-sm" x-text="column.name"></h2>
                     <span class="bg-white dark:bg-slate-800 px-2 py-0.5 rounded text-xs font-bold text-slate-400 border dark:border-slate-700" x-text="filteredTasks(column.tasks).length"></span>
@@ -56,7 +51,7 @@
 
                 <div class="space-y-3 overflow-y-auto flex-grow min-h-[100px]" @dragover.prevent @drop="drop($event, colIndex)">
                     <template x-for="(task, taskIndex) in filteredTasks(column.tasks)" :key="task.id">
-                        <div class="bg-white dark:bg-slate-800 p-4 rounded-lg shadow-sm border border-slate-200 dark:border-slate-700 cursor-grab active:cursor-grabbing group transition-all hover:border-indigo-300 dark:hover:border-indigo-500"
+                        <div class="bg-white dark:bg-slate-800 p-4 rounded-lg shadow-sm border border-slate-200 dark:border-slate-700 cursor-grab active:cursor-grabbing group transition-all hover:border-indigo-400"
                              draggable="true" @dragstart="dragStart($event, colIndex, task.id)">
                             
                             <div class="flex justify-between items-start mb-2">
@@ -66,19 +61,23 @@
                                     'bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400': task.priority === 'med',
                                     'bg-slate-100 text-slate-600 dark:bg-slate-700 dark:text-slate-400': task.priority === 'low'
                                 }" x-text="task.priority"></span>
-                                <button @click="deleteTask(colIndex, task.id)" class="opacity-0 group-hover:opacity-100 text-slate-300 hover:text-red-500 transition-opacity text-xl leading-none">&times;</button>
+                                
+                                <div class="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                                    <button @click="openEditModal(colIndex, task)" class="text-slate-400 hover:text-indigo-500 text-xs">Edit</button>
+                                    <button @click="deleteTask(colIndex, task.id)" class="text-slate-400 hover:text-red-500 text-lg leading-none">&times;</button>
+                                </div>
                             </div>
                             <p class="text-sm font-medium text-slate-700 dark:text-slate-200 break-words whitespace-pre-wrap" x-text="task.content"></p>
                         </div>
                     </template>
 
                     <button @click="column.isAdding = true" x-show="!column.isAdding" 
-                            class="w-full py-2 border-2 border-dashed border-slate-300 dark:border-slate-700 rounded-lg text-slate-400 text-sm hover:border-indigo-400 hover:text-indigo-500 transition-colors">
+                            class="w-full py-2 border-2 border-dashed border-slate-300 dark:border-slate-700 rounded-lg text-slate-400 text-sm hover:border-indigo-400 hover:text-indigo-500">
                         + Add Task
                     </button>
 
                     <div x-show="column.isAdding" x-cloak class="bg-white dark:bg-slate-800 p-3 rounded-lg shadow-md border border-indigo-200 dark:border-indigo-900">
-                        <textarea x-model="newTaskContent" class="w-full text-sm p-2 border border-slate-200 dark:border-slate-700 dark:bg-slate-900 rounded mb-2 outline-none focus:ring-2 focus:ring-indigo-500 text-slate-700 dark:text-slate-200" placeholder="Task description..."></textarea>
+                        <textarea x-model="newTaskContent" class="w-full text-sm p-2 border border-slate-200 dark:border-slate-700 dark:bg-slate-900 rounded mb-2 outline-none focus:ring-2 focus:ring-indigo-500 dark:text-slate-200" placeholder="Task description..."></textarea>
                         <div class="flex gap-2">
                             <select x-model="newTaskPriority" class="text-xs border dark:border-slate-700 dark:bg-slate-900 rounded px-1 dark:text-slate-300">
                                 <option value="low">Low</option><option value="med">Med</option><option value="high">High</option>
@@ -91,6 +90,28 @@
             </div>
         </template>
     </main>
+
+    <div x-show="isEditModalOpen" x-cloak class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm" @keydown.escape.window="closeEditModal()">
+        <div class="bg-white dark:bg-slate-900 w-full max-w-md rounded-xl shadow-2xl border border-slate-200 dark:border-slate-800 overflow-hidden" @click.away="closeEditModal()">
+            <div class="p-6">
+                <h3 class="text-lg font-bold mb-4 dark:text-white">Edit Task</h3>
+                <textarea x-model="editingTask.content" class="w-full h-32 text-sm p-3 border border-slate-200 dark:border-slate-700 dark:bg-slate-800 rounded-lg mb-4 outline-none focus:ring-2 focus:ring-indigo-500 dark:text-slate-200"></textarea>
+                
+                <div class="flex justify-between items-center">
+                    <div>
+                        <label class="block text-[10px] font-bold uppercase text-slate-400 mb-1">Priority</label>
+                        <select x-model="editingTask.priority" class="text-sm border dark:border-slate-700 dark:bg-slate-800 rounded px-2 py-1 dark:text-slate-300">
+                            <option value="low">Low</option><option value="med">Med</option><option value="high">High</option>
+                        </select>
+                    </div>
+                    <div class="flex gap-3">
+                        <button @click="closeEditModal()" class="text-slate-500 hover:text-slate-700 text-sm font-medium">Cancel</button>
+                        <button @click="saveEdit()" class="bg-indigo-600 text-white px-6 py-2 rounded-lg text-sm font-bold hover:bg-indigo-700 shadow-lg shadow-indigo-500/30">Save Changes</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
 
     <script>
         function kanbanApp() {
@@ -105,11 +126,14 @@
                 newTaskContent: '',
                 newTaskPriority: 'med',
                 dragInfo: null,
+                
+                // Edit Modal State
+                isEditModalOpen: false,
+                editingTask: { id: null, content: '', priority: '', colIndex: null },
 
                 init() {
                     const savedData = localStorage.getItem('zenith_data');
                     const savedTheme = localStorage.getItem('zenith_theme');
-                    // Ensure we parse the boolean correctly
                     if (savedData) this.columns = JSON.parse(savedData);
                     if (savedTheme !== null) this.darkMode = JSON.parse(savedTheme);
                 },
@@ -124,15 +148,33 @@
                     return tasks.filter(t => t.content.toLowerCase().includes(this.searchQuery.toLowerCase()));
                 },
 
-                toggleTheme() { 
-                    this.darkMode = !this.darkMode; 
-                    this.save(); 
-                },
+                toggleTheme() { this.darkMode = !this.darkMode; this.save(); },
 
                 addTask(colIndex) {
                     if (!this.newTaskContent.trim()) return;
                     this.columns[colIndex].tasks.push({ id: Date.now(), content: this.newTaskContent, priority: this.newTaskPriority });
                     this.newTaskContent = ''; this.columns[colIndex].isAdding = false; this.save();
+                },
+
+                // NEW: Edit Modal Logic
+                openEditModal(colIndex, task) {
+                    this.editingTask = { ...task, colIndex };
+                    this.isEditModalOpen = true;
+                },
+
+                closeEditModal() {
+                    this.isEditModalOpen = false;
+                },
+
+                saveEdit() {
+                    const col = this.columns[this.editingTask.colIndex];
+                    const taskIndex = col.tasks.findIndex(t => t.id === this.editingTask.id);
+                    if (taskIndex !== -1) {
+                        col.tasks[taskIndex].content = this.editingTask.content;
+                        col.tasks[taskIndex].priority = this.editingTask.priority;
+                        this.save();
+                    }
+                    this.closeEditModal();
                 },
 
                 deleteTask(colIndex, taskId) {
