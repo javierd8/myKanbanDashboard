@@ -1,2 +1,2 @@
-# myKanban
-Kanban Dashboard
+# myKanbanDashboard
+Kanban Dashboard (VibeCoded btw)
