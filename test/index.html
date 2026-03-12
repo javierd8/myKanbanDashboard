@@ -24,7 +24,7 @@
             background-attachment: fixed;
         }
         
-        /* Forces the Tenor embed to fit the avatar box */
+        /* Forces the Tenor embed to fit the avatar box and disables its internal link */
         .tenor-container { position: relative; overflow: hidden; pointer-events: none; }
         .tenor-container iframe { position: absolute; top: 0; left: 0; width: 100% !important; height: 100% !important; }
     </style>
@@ -32,12 +32,19 @@
 <body class="themed-bg bg-slate-50 text-slate-900 dark:text-slate-100 font-sans antialiased theme-transition dark:bg-slate-950 min-h-screen flex flex-col"
       :style="'background-image: url(' + (darkMode ? imageUrls.darkBg : imageUrls.lightBg) + ')'">
 
+    <audio id="wahSound" src="https://www.myinstants.com/media/sounds/ina-wah-1.mp3"></audio>
+
     <header class="bg-white/80 dark:bg-slate-900/80 backdrop-blur-md border-b border-slate-200 dark:border-slate-800 px-6 py-4 flex flex-wrap justify-between items-center sticky top-0 z-20 gap-4">
         <div class="flex items-center gap-6">
             
-            <div class="flex-shrink-0 w-24 h-24 rounded-xl shadow-lg ina-border bg-slate-200 tenor-container flex items-center justify-center">
-                <div class="tenor-gif-embed" data-postid="26108945" data-share-method="host" data-aspect-ratio="1" data-width="100%"></div> 
-                <script type="text/javascript" async src="https://tenor.com/embed.js"></script>
+            <div class="relative w-24 h-24 rounded-xl shadow-lg ina-border bg-slate-200 cursor-pointer group" @click="playWah()" title="WAH!">
+                <div class="tenor-container w-full h-full rounded-[8px] overflow-hidden">
+                    <div class="tenor-gif-embed" data-postid="26108945" data-share-method="host" data-aspect-ratio="1" data-width="100%"></div> 
+                    <script type="text/javascript" async src="https://tenor.com/embed.js"></script>
+                </div>
+                <div class="absolute inset-0 bg-purple-500/30 opacity-0 group-hover:opacity-100 transition-opacity rounded-[8px] flex items-center justify-center backdrop-blur-[1px]">
+                    <span class="text-white font-black text-xl drop-shadow-md tracking-widest">WAH!</span>
+                </div>
             </div>
             
             <div class="flex flex-col">
@@ -195,7 +202,7 @@
         function kanbanApp() {
             return {
                 columns: [],
-                darkMode: false,
+                darkMode: true, // Defaulting to true as requested
                 searchQuery: '',
                 newTaskContent: '',
                 newTaskPriority: 'med',
@@ -225,25 +232,21 @@
                     }
 
                     try {
-                        // PERMANENT LOCALSTORAGE KEYS
                         const savedData = localStorage.getItem('kanban_ina_data');
                         const savedTheme = localStorage.getItem('kanban_ina_theme');
                         
-                        // To prevent data loss if you have data under the old key (kanban_v5_pro), 
-                        // we can try to migrate it once.
-                        const legacyData = localStorage.getItem('kanban_v5_pro');
-                        
                         if (savedData) {
                             this.columns = JSON.parse(savedData);
-                        } else if (legacyData) {
-                            this.columns = JSON.parse(legacyData);
-                            this.save(); // save under new permanent key
                         } else {
                             this.resetToDefault(false);
                         }
                         
+                        // Set Dark Mode: Check storage first, if nothing is there, it remains TRUE (default)
                         if (savedTheme !== null) {
                             this.darkMode = JSON.parse(savedTheme);
+                        } else {
+                            this.darkMode = true;
+                            this.save();
                         }
                     } catch (e) {
                         this.logError('Failed to load LocalStorage Data', e);
@@ -253,7 +256,6 @@
 
                 save() {
                     try {
-                        // PERMANENT LOCALSTORAGE KEYS
                         localStorage.setItem('kanban_ina_data', JSON.stringify(this.columns));
                         localStorage.setItem('kanban_ina_theme', JSON.stringify(this.darkMode));
                     } catch (e) {
@@ -261,7 +263,17 @@
                     }
                 },
 
-                // Push to UI and Developer Console
+                // Audio Trigger
+                playWah() {
+                    const audio = document.getElementById('wahSound');
+                    if (audio) {
+                        audio.currentTime = 0; // Reset to allow rapid clicking
+                        audio.play().catch(err => {
+                            this.logError("Failed to play sound. Your browser might be blocking auto-play features.", err);
+                        });
+                    }
+                },
+
                 logError(uiMessage, technicalError) { 
                     this.errors.push({ message: uiMessage }); 
                     console.error("KANBAN DASHBOARD ERROR:", technicalError);
